@@ -1,0 +1,23 @@
+{
+  "name": "国税徴収法 Knowledge Lab",
+  "short_name": "徴収法Lab",
+  "description": "国税徴収法の理解・暗記・過去問の学習管理",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f8",
+  "theme_color": "#101e2f",
+  "icons": [
+    {
+      "src": "app-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
