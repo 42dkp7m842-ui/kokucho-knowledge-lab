@@ -104,7 +104,14 @@ function past(){
 }
 function materials(){
  const unassigned=S.assets.filter(a=>!a.itemId), topicsWith=S.assets.filter(a=>a.itemId);
- return `${intro('MATERIALS','画像教材を追加する','iPhoneで撮影した理論テキストを保存し、論点に紐付けます。文字起こしは任意で、必ず原本と照合。')}
+ return `${intro('IMPORT & MATERIALS','学習データを追加する','ChatGPTで作成した理論・演習JSONをそのまま取り込みます。画像の保存は任意です。')}
+ <section class="panel panel-pad mb20"><h2 class="section-title">① ChatGPTの生成JSONを一括登録</h2>
+ <p class="muted">理論テキストをChatGPTに添付 → 専用プロンプトでJSONを作成 → 下に貼り付け。理論・記述演習を同時登録できます。</p>
+ <div class="flex"><button class="btn btn-line btn-sm" data-action="copyPrompt">① 作成用プロンプトをコピー</button></div>
+ <label class="label-field mt12">② ChatGPTの回答（JSON）を貼り付ける<textarea id="topicJson" class="textarea" rows="8" placeholder='{"topics":[{"area":"差押え","title":"論点名","summary":"趣旨と要点","question":"確認問題","answer":"自分の言葉で書いた結論","keywords":["要件"]}],"questions":[]}'></textarea></label>
+ <label class="label-field mt12">または生成済みのJSONファイルを選ぶ<input class="input" id="topicJsonFile" type="file" accept=".json,application/json,text/plain"></label>
+ <div class="flex mt12"><button class="btn btn-line btn-sm" data-action="previewTopics">③ 内容と重複を確認</button><button class="btn btn-primary btn-sm" data-action="importTopics">④ 理論・問題を登録</button></div>
+ <p class="tiny mt12">同名の理論は更新され、復習履歴は維持されます。登録データには「要照合」が付きます。インポート後にJSONバックアップを保存してください。</p></section>
  <div class="layout-two"><section class="panel panel-pad"><h2 class="section-title">画像を取り込む</h2><label class="label-field">関連する論点・問題<select class="select" id="uploadTopic"><option value="">未分類として保存</option>${S.topics.map(t=>`<option value="${t.id}">理論 / ${esc(t.title)}</option>`).join('')}${S.questions.map(q=>`<option value="${q.id}">問題 / ${esc(q.title)}</option>`).join('')}</select></label><label class="upload-zone" style="display:block"><input id="globalUpload" type="file" accept="image/*" multiple><b>＋ 写真を選ぶ・カメラで撮影</b><small>複数画像を一度に追加できます。画像は圧縮してこの端末内に保存します。</small></label><div class="warning-inline">教材を読み込んでも画像から条文を自動登録するわけではありません。「文字起こし」または「ChatGPT用プロンプト」を使って確認しながら入力します。</div><button class="btn btn-line btn-sm" data-action="copyPrompt">ChatGPT用プロンプトをコピー</button></section>
  <section class="panel panel-pad"><h2 class="section-title">画像の保存状況</h2><div class="grid-stats" style="grid-template-columns:repeat(2,1fr)"><div class="stat"><div class="label">保存画像</div><div class="value">${S.assets.length}</div></div><div class="stat"><div class="label">未分類</div><div class="value">${unassigned.length}</div></div></div><p class="muted">画像の保存先はブラウザのIndexedDBです。Safariのデータ消去や他の端末には引き継がれません。画像入りJSONバックアップを必ず保存してください。</p><button class="btn btn-line btn-sm" data-page="data">バックアップへ →</button></section></div>
  <div class="panel panel-pad mt20"><h2 class="section-title">登録済み画像 <small>${S.assets.length}枚</small></h2>${S.assets.length?`<div class="material-grid">${S.assets.slice().reverse().map(a=>`<div class="material-item"><img data-action="zoomPhoto" data-id="${a.id}" src="${photoUrl(a)}" alt="${esc(a.name)}"><div class="material-info"><b>${esc(a.name||'教材画像')}</b><small>${esc(S.topics.find(t=>t.id===a.itemId)?.title||S.questions.find(q=>q.id===a.itemId)?.title||'未分類')} · ${new Date(a.createdAt).toLocaleDateString('ja-JP')}</small><div class="flex"><button class="link-btn" data-action="assignPhoto" data-id="${a.id}">論点を変更</button><button class="link-btn" data-action="ocrPhoto" data-id="${a.id}">文字起こし</button><button class="link-btn danger-text" data-action="removePhoto" data-id="${a.id}">削除</button></div></div></div>`).join('')}</div>`:'<div class="empty">まだ画像がありません。理論テキストの写真を追加してください。</div>'}</div>`;
@@ -174,7 +181,18 @@ function updateTimer(){
  if(S.practiceTimer){const el=$('#practiceCountdown');if(el){const remain=Math.max(0,1200000-(Date.now()-S.practiceTimer.start));const m=Math.floor(remain/60000),sec=Math.floor(remain%60000/1000);el.textContent=`${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}${remain===0?'（終了）':''}`;}}
 }
 
-function copyPrompt(){return `あなたは税理士試験の国税徴収法専門講師です。添付した理論教材の写真を読み取り、写真に記載されている論点のみを整理してください。判読できない文字・条文番号・法令の年度は推測せず、必ず「要確認」としてください。教材の内容とAIの追加説明を分け、著作権に配慮した独自の短い要約で、以下のJSONのみを出力してください。\n{"topics":[{"area":"差押え","title":"論点名","law":"条文番号（確認できるときのみ）","summary":"趣旨・制度の目的と具体例","question":"暗記確認の問い","answer":"自分の言葉で作った短い結論と要件・効果・例外","keywords":["重要語句1","重要語句2"],"notes":"混同しやすい論点・原文の要照合箇所","sourceLabel":"教材名・版・掲載ページ","verification":"not-checked"}]}\n長い教材本文を転載しないこと。2027年度の試験適用法令は別途確認すること。`}
+function copyPrompt(){return `あなたは税理士試験・国税徴収法専門講師です。添付した理論教材の写真だけを根拠に、理解と暗記に使えるJSONを作成してください。写真にない制度・論点は追加しないでください。判読不能な文字、条数、年度は推測せず「要確認」と書いてください。教材の内容とAIの補足を区別し、原文の長い転載は避け、自分の言葉で短く整理してください。
+
+出力はJSONのみ。コードブロックや前置きは不要。複数論点ならtopicsを複数件にしてください。理論と関連するオリジナル練習問題もquestionsに追加してください。
+{
+ "topics":[
+  {"area":"差押え","title":"論点名","law":"条文番号または要確認","summary":"制度の目的と要点・具体例","question":"理論を自力再現する問い","answer":"結論→発動条件→主体→要件→効果→限度→例外→手続を短く整理","keywords":["キーワード1","キーワード2"],"notes":"混同しやすい論点、要照合事項","sourceLabel":"教材名・年度・掲載ページ","verification":"not-checked"}
+ ],
+ "questions":[
+  {"kind":"practice","title":"演習問題名","area":"差押え","topicTitle":"関連する理論の論点名","question":"実際の答案作成につながるオリジナルの事例問題","answer":"短い模範的な解答例","keywords":["採点要素1","採点要素2"],"sourceLabel":"AI作成・要照合"}
+ ]
+}
+写真に演習問題を作るだけの根拠がない場合はquestionsを空配列にしてください。過去問の本文を確認していない場合、kindにはpastを使わないでください。2027年度の適用法令は別途確認すること。`}
 async function imageCompression(file){
  if(file.size>18000000)throw Error('画像が大きすぎます（18MB以下にしてください）');
  const tryCanvas=async()=>{let bmp=await createImageBitmap(file),max=1700,ratio=Math.min(1,max/Math.max(bmp.width,bmp.height));let c=document.createElement('canvas');c.width=Math.round(bmp.width*ratio);c.height=Math.round(bmp.height*ratio);c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);bmp.close?.();return await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(Error('変換失敗')),'image/jpeg',.82))};
@@ -206,8 +224,19 @@ async function restoreBackup(file){
  for(const r of data.reviews)if(r?.id)await put('reviews',r);
  S.settings={...S.settings,...(data.settings||{}),lastBackup:today()};await saveSettings();S.photoUrl.forEach(url=>URL.revokeObjectURL(url));S.photoUrl.clear();await load();page('home');message('全データを復元しました');
 }
+function parseStudyJSON(input){
+ let text=String(input||'').trim();
+ const fenced=text.match(/^\`\`\`(?:json)?\s*([\s\S]*?)\s*\`\`\`$/i);
+ if(fenced)text=fenced[1].trim();
+ if(!text)throw Error('ChatGPTが作成したJSONを貼り付けてください');
+ let data;try{data=JSON.parse(text)}catch{throw Error('JSONとして読み取れません。ChatGPTに「JSONのみで再出力」と依頼してください')}
+ if(!data||typeof data!=='object'||Array.isArray(data))throw Error('topics / questionsを含むJSONオブジェクトを指定してください');
+ if(data.topics!==undefined&&!Array.isArray(data.topics))throw Error('topicsには配列を指定してください');
+ if(data.questions!==undefined&&!Array.isArray(data.questions))throw Error('questionsには配列を指定してください');
+ return data;
+}
 async function importTopics(json){
- const data=JSON.parse(json),topics=Array.isArray(data.topics)?data.topics:[],questions=Array.isArray(data.questions)?data.questions:[];
+ const data=parseStudyJSON(json),topics=Array.isArray(data.topics)?data.topics:[],questions=Array.isArray(data.questions)?data.questions:[];
  if(!topics.length&&!questions.length)throw Error('topicsまたはquestionsの配列がありません');
  if(topics.length+questions.length>250)throw Error('一度に登録できるのは250件までです');
  let added=0,updated=0;
@@ -288,6 +317,19 @@ async function handleClick(e){
  case 'copyQuestionPrompt':{let txt=copyQuestionPrompt();try{await navigator.clipboard.writeText(txt);message('過去問JSON用プロンプトをコピーしました')}catch{modal(`${modalHeader('過去問用プロンプト')}<textarea class="textarea" rows="12" readonly>${esc(txt)}</textarea>`)}break}
  case 'copyPrompt':{let txt=copyPrompt();try{await navigator.clipboard.writeText(txt);message('ChatGPT用プロンプトをコピーしました')}catch{modal(`${modalHeader('プロンプトをコピー')}<textarea class="textarea" rows="12" readonly>${esc(txt)}</textarea>`)}break}
  case 'exportBackup':await exportBackup();break;
+ case 'previewTopics':{
+  const data=parseStudyJSON($('#topicJson')?.value),topics=data.topics||[],questions=data.questions||[];
+  if(!topics.length&&!questions.length)throw Error('topics または questions が空です');
+  const existing=topics.filter(t=>S.topics.some(v=>normalize(v.title)===normalize(String(t.title||'')))).length;
+  const invalid=topics.filter(t=>!String(t.title||'').trim()).length+questions.filter(q=>!String(q.title||'').trim()).length;
+  modal(`${modalHeader('取込内容を事前確認')}<p><b>理論 ${topics.length}件</b>（既存と同名 ${existing}件）、<b>演習・過去問 ${questions.length}件</b></p>
+  ${invalid?`<p class="warning-inline">タイトルがない項目 ${invalid}件は登録されません。</p>`:''}
+  <p class="muted">理論の例：${esc(topics.slice(0,8).map(t=>t.title||'タイトル未入力').join('、')||'なし')}</p>
+  <p class="warning-inline">過去問をAIが作成した場合は本試験問題と誤表示しないでください。出典・年度・条文を教材で確認してください。</p>
+  <button class="btn btn-primary" data-action="confirmJsonImport">内容を確認して登録する</button>`);
+  break
+ }
+ case 'confirmJsonImport':{const json=$('#topicJson')?.value;closeModal();await importTopics(json);break}
  case 'importTopics':await importTopics($('#topicJson').value);break;
  case 'resetAll':if(ask('本当にすべての学習データ・画像を削除しますか？（元に戻せません）')&&ask('最終確認：バックアップを保存済みですか？')){for(const name of ['topics','questions','assets','reviews','settings'])await clearStore(name);S.settings={goal:'',dailyGoal:15,minutes:25,lastBackup:''};S.photoUrl.forEach(u=>URL.revokeObjectURL(u));S.photoUrl.clear();await seed();await load();page('home');message('データを初期化しました')}break;
  case 'closeModal':closeModal();break;
@@ -298,6 +340,7 @@ async function handleChange(e){
  let el=e.target;
  try{if(el.matches('[data-upload-for]')){await uploadImages(el.files,el.dataset.uploadFor);el.value=''}
  else if(el.id==='globalUpload'){await uploadImages(el.files,$('#uploadTopic')?.value||'');el.value=''}
+ else if(el.id==='topicJsonFile'){let file=el.files?.[0];if(file){if(file.size>2500000)throw Error('JSONファイルは2.5MB以下にしてください');const elText=$('#topicJson');if(elText){elText.value=await file.text();message('JSONファイルを読み込みました。確認して登録してください')}}el.value=''}
  else if(el.id==='restoreInput'){if(el.files[0])await restoreBackup(el.files[0]);el.value=''}
  else if(el.id==='areaFilter'){S.area=el.value;render()}}
  catch(err){console.error(err);message(err.message)}
